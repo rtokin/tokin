@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Админ-панель</title>
+</head>
+<body>
+  <h1>Управление товарами</h1>
+  <form id="addForm">
+    <input type="text" id="name" placeholder="Название" required>
+    <input type="number" id="price" placeholder="Цена" required>
+    <input type="text" id="description" placeholder="Описание">
+    <input type="text" id="categories" placeholder="Категории (через запятую)">
+    <button type="submit">Добавить</button>
+  </form>
+
+  <script>
+    document.getElementById('addForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const product = {
+        name: document.getElementById('name').value,
+        price: parseFloat(document.getElementById('price').value),
+        description: document.getElementById('description').value,
+        categories: document.getElementById('categories').value.split(',').map(s => s.trim())
+      };
+
+      await fetch('http://localhost:8080/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([product])
+      });
+      alert('Товар добавлен! Обновите страницу.');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Магазин</title>
+  <style>
+    .card { border: 1px solid #ccc; padding: 10px; margin: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Каталог товаров</h1>
+  <div id="products"></div>
+  <script>
+    fetch('http://localhost:3000/api/products')
+      .then(res => res.json())
+      .then(data => {
+        const container = document.getElementById('products');
+        container.innerHTML = ''; // Очистка контейнера
+        data.forEach(product => {
+          container.innerHTML += `
+            <div class="card">
+              <h3>${product.name}</h3>
+              <p>Цена: ${product.price} руб.</p>
+              <p>${product.description}</p>
+              <p>Категории: ${product.categories.join(', ')}</p>
+            </div>
+          `;
+        });
+      });
+  </script>
+</body>
+</html>
