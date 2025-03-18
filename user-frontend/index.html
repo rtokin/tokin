@@ -1,31 +1,79 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>Магазин</title>
   <style>
-    .card { border: 1px solid #ccc; padding: 10px; margin: 10px; }
+    .card {
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin: 10px;
+    }
   </style>
 </head>
+
 <body>
   <h1>Каталог товаров</h1>
   <div id="products"></div>
+
+  <div id="chat">
+    <div id="messages" style="height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;"></div>
+    <input type="text" id="messageInput" placeholder="Ваше сообщение...">
+    <button onclick="sendMessage()">Отправить</button>
+  </div>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script>
-    fetch('http://localhost:3000/api/products')
+    // 1. Загрузка товаров через GraphQL
+    fetch('http://localhost:4000/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `{ products(fields: ["name", "price"]) { name price } }`
+      })
+    })
       .then(res => res.json())
       .then(data => {
         const container = document.getElementById('products');
-        container.innerHTML = ''; // Очистка контейнера
-        data.forEach(product => {
+        data.data.products.forEach(product => {
           container.innerHTML += `
-            <div class="card">
-              <h3>${product.name}</h3>
-              <p>Цена: ${product.price} руб.</p>
-              <p>${product.description}</p>
-              <p>Категории: ${product.categories.join(', ')}</p>
-            </div>
-          `;
+          <div class="card">
+            <h3>${product.name}</h3>
+            <p>Цена: ${product.price} руб.</p>
+          </div>
+        `;
         });
       });
+      
+    const socket = io('http://localhost:4000');
+    // Получаем историю сообщений при подключении
+    socket.on('chatHistory', (messages) => {
+      const messagesDiv = document.getElementById('messages');
+      messages.forEach(msg => {
+        messagesDiv.innerHTML += `<div>${msg}</div>`;
+      });
+    });
+
+    // Обработка новых сообщений
+    socket.on('chatMessage', (msg) => {
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.innerHTML += `<div>${msg}</div>`;
+      messagesDiv.scrollTop = messagesDiv.scrollHeight; // Автоскролл
+    });
+
+    // Функция отправки сообщения
+    function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const message = input.value.trim(); // Убираем лишние пробелы
+
+      if (message) { // Проверяем, что сообщение не пустое
+        socket.emit('chatMessage', message); // Отправляем сообщение на сервер
+        input.value = ''; // Очищаем поле ввода
+      } else {
+        alert('Сообщение не может быть пустым!'); // Предупреждение, если поле пустое
+      }
+    }
   </script>
 </body>
+
 </html>

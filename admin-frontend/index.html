@@ -1,20 +1,68 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>Админ-панель</title>
+  <style>
+    .card {
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin: 10px;
+    }
+
+    #chat {
+      margin-top: 20px;
+    }
+  </style>
 </head>
+
 <body>
   <h1>Управление товарами</h1>
-  <form id="addForm">
+
+  <!-- Форма для добавления товара -->
+  <form id="addProductForm">
     <input type="text" id="name" placeholder="Название" required>
     <input type="number" id="price" placeholder="Цена" required>
     <input type="text" id="description" placeholder="Описание">
     <input type="text" id="categories" placeholder="Категории (через запятую)">
-    <button type="submit">Добавить</button>
+    <button type="submit">Добавить товар</button>
   </form>
 
+  <!-- Список товаров -->
+  <div id="products"></div>
+
+  <!-- Чат -->
+  <div id="chat">
+    <div id="messages" style="height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;"></div>
+    <input type="text" id="messageInput" placeholder="Ваше сообщение...">
+    <button onclick="sendMessage()">Отправить</button>
+  </div>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script>
-    document.getElementById('addForm').addEventListener('submit', async (e) => {
+    // 1. Загрузка товаров
+    function loadProducts() {
+      fetch('http://localhost:8080/api/products')
+        .then(res => res.json())
+        .then(data => {
+          const container = document.getElementById('products');
+          container.innerHTML = '';
+          data.forEach(product => {
+            container.innerHTML += `
+              <div class="card">
+                <h3>${product.name}</h3>
+                <p>Цена: ${product.price} руб.</p>
+                <p>${product.description || ''}</p>
+                <p>Категории: ${product.categories.join(', ') || ''}</p>
+                <button onclick="deleteProduct(${product.id})">Удалить</button>
+              </div>
+            `;
+          });
+        });
+    }
+
+    // 2. Добавление товара
+    document.getElementById('addProductForm').addEventListener('submit', (e) => {
       e.preventDefault();
       const product = {
         name: document.getElementById('name').value,
@@ -23,13 +71,61 @@
         categories: document.getElementById('categories').value.split(',').map(s => s.trim())
       };
 
-      await fetch('http://localhost:8080/api/products', {
+      fetch('http://localhost:8080/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([product])
-      });
-      alert('Товар добавлен! Обновите страницу.');
+        body: JSON.stringify(product)
+      })
+        .then(res => res.json())
+        .then(data => {
+          alert(data.message);
+          loadProducts(); // Обновляем список товаров
+        });
     });
+
+    // 3. Удаление товара
+    function deleteProduct(id) {
+      fetch(`http://localhost:8080/api/products/${id}`, {
+        method: 'DELETE'
+      })
+        .then(res => res.json())
+        .then(data => {
+          alert(data.message);
+          loadProducts(); // Обновляем список товаров
+        });
+    }
+    
+    const socket = io('http://localhost:8080');
+    socket.on('chatHistory', (messages) => {
+      const messagesDiv = document.getElementById('messages');
+      messages.forEach(msg => {
+        messagesDiv.innerHTML += `<div>${msg}</div>`;
+      });
+    });
+
+    // Обработка новых сообщений
+    socket.on('chatMessage', (msg) => {
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.innerHTML += `<div>${msg}</div>`;
+      messagesDiv.scrollTop = messagesDiv.scrollHeight; // Автоскролл
+    });
+
+    // Функция отправки сообщения
+    function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const message = input.value.trim(); // Убираем лишние пробелы
+
+      if (message) { // Проверяем, что сообщение не пустое
+        socket.emit('chatMessage', message); // Отправляем сообщение на сервер
+        input.value = ''; // Очищаем поле ввода
+      } else {
+        alert('Сообщение не может быть пустым!'); // Предупреждение, если поле пустое
+      }
+    }
+
+    // Загружаем товары при загрузке страницы
+    loadProducts();
   </script>
 </body>
+
 </html>
