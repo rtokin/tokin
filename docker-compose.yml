@@ -1,0 +1,28 @@
+version: '3'
+
+services:
+  admin-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - /app/admin-backend/node_modules
+    ports:
+      - "8080:8080"
+    command: node admin-backend/server.js
+    environment:
+      - NODE_ENV=development
+
+  user-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - /app/user-backend/node_modules
+    ports:
+      - "4000:4000"
+    command: node user-backend/server.js
+    environment:
+      - NODE_ENV=development

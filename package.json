@@ -1,0 +1,20 @@
+{
+    "name": "tokin",
+    "version": "1.0.0",
+    "description": "Tokin project with admin and user backends",
+    "scripts": {
+        "start:admin": "node admin-backend/server.js",
+        "start:user": "node user-backend/server.js",
+        "start": "concurrently \"npm run start:admin\" \"npm run start:user\""
+    },
+    "dependencies": {
+        "express": "^4.21.2",
+        "socket.io": "^4.8.1",
+        "body-parser": "^1.20.3",
+        "graphql": "^15.10.1",
+        "graphql-http": "^1.22.4"
+    },
+    "devDependencies": {
+        "concurrently": "^8.0.1"
+    }
+}
