@@ -67,7 +67,7 @@ services:
   nginx:
     image: nginx:latest
     ports:
-      - "9090:9090"  # Admin backend
+      - "8080:8080"  # Admin backend
       - "4000:4000"  # User backend
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro

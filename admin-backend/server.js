@@ -80,7 +80,7 @@ io.on('connection', (socket) => {
 });
 
 // 6. Запуск сервера
-const PORT = 9090;
+const PORT = 8080;
 server.listen(PORT, () => {
   console.log(`Сервер администратора запущен: http://localhost:${PORT}`);
 });
