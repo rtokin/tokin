@@ -1,79 +1,267 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="ru">
 <head>
-  <title>Магазин</title>
-  <style>
-    .card {
-      border: 1px solid #ddd;
-      padding: 15px;
-      margin: 10px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пользовательский интерфейс</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .product-list {
+            flex: 2;
+        }
+        .chat-container {
+            flex: 1;
+            border-left: 1px solid #ccc;
+            padding-left: 20px;
+        }
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .product-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            transition: transform 0.2s;
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .chat-messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 6px;
+            background-color: #f5f5f5;
+        }
+        .message-meta {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 4px;
+        }
+        .server-info {
+            background-color: #f0f8ff;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        .server-info span {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        .user-count {
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 8px;
+            margin-top: 5px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .chat-form {
+            display: flex;
+            gap: 10px;
+        }
+        .chat-form input {
+            flex: 1;
+        }
+    </style>
 </head>
-
 <body>
-  <h1>Каталог товаров</h1>
-  <div id="products"></div>
+    <h1>Каталог товаров</h1>
+    
+    <div class="server-info" id="serverInfo">
+        <span id="instanceId">ID экземпляра: загрузка...</span>
+        <span id="userCount">Пользователей онлайн: 0</span>
+    </div>
+    
+    <div class="container">
+        <div class="product-list">
+            <div class="product-grid" id="productGrid">
+                <!-- Товары будут загружены сюда -->
+                <p>Загрузка товаров...</p>
+            </div>
+        </div>
+        
+        <div class="chat-container">
+            <h2>Онлайн чат</h2>
+            <div class="user-count" id="userCountDisplay">Пользователей в чате: 0</div>
+            <div class="chat-messages" id="chatMessages">
+                <!-- Сообщения чата будут здесь -->
+            </div>
+            <form id="chatForm" class="chat-form">
+                <input type="text" id="userName" placeholder="Ваше имя" required>
+                <input type="text" id="messageInput" placeholder="Введите сообщение..." required>
+                <button type="submit">Отправить</button>
+            </form>
+        </div>
+    </div>
 
-  <div id="chat">
-    <div id="messages" style="height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;"></div>
-    <input type="text" id="messageInput" placeholder="Ваше сообщение...">
-    <button onclick="sendMessage()">Отправить</button>
-  </div>
-
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  <script>
-    // 1. Загрузка товаров через GraphQL
-    fetch('http://localhost:4000/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: `{ products(fields: ["name", "price"]) { name price } }`
-      })
-    })
-      .then(res => res.json())
-      .then(data => {
-        const container = document.getElementById('products');
-        data.data.products.forEach(product => {
-          container.innerHTML += `
-          <div class="card">
-            <h3>${product.name}</h3>
-            <p>Цена: ${product.price} руб.</p>
-          </div>
-        `;
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Подключение к серверу
+        const socket = io();
+        let instanceId = "загрузка...";
+        
+        // Функция для загрузки товаров через GraphQL
+        async function loadProducts() {
+            try {
+                const query = `{
+                    products(fields: ["id", "name", "price", "description", "categories"]) {
+                        id
+                        name
+                        price
+                        description
+                        categories
+                    }
+                    serverInfo {
+                        instanceId
+                        uptime
+                        timestamp
+                    }
+                }`;
+                
+                const response = await fetch('/graphql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query })
+                });
+                
+                const data = await response.json();
+                if (data.errors) {
+                    throw new Error(data.errors.map(e => e.message).join(', '));
+                }
+                
+                // Обновляем информацию о сервере
+                updateServerInfo(data.data.serverInfo);
+                
+                // Отображаем товары
+                const products = data.data.products;
+                const productGrid = document.getElementById('productGrid');
+                productGrid.innerHTML = '';
+                
+                products.forEach(product => {
+                    const card = document.createElement('div');
+                    card.className = 'product-card';
+                    card.innerHTML = `
+                        <h3>${product.name}</h3>
+                        <p>${product.price} ₽</p>
+                        <p>${product.description}</p>
+                        <p><small>Категории: ${product.categories.join(', ')}</small></p>
+                    `;
+                    productGrid.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Ошибка при загрузке товаров:', error);
+                document.getElementById('productGrid').innerHTML = '<p>Ошибка загрузки товаров: ' + error.message + '</p>';
+            }
+        }
+        
+        // Обновление информации о сервере
+        function updateServerInfo(info) {
+            instanceId = info.instanceId;
+            document.getElementById('instanceId').textContent = `ID экземпляра: ${info.instanceId}`;
+            console.log(`Соединение с экземпляром: ${info.instanceId}, аптайм: ${Math.round(info.uptime)} сек`);
+        }
+        
+        // Отображение сообщений чата
+        function displayMessage(msg) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            
+            const timestamp = new Date(msg.timestamp || Date.now()).toLocaleTimeString();
+            const serverInfo = msg.instanceId ? `(обработано: ${msg.instanceId})` : '';
+            
+            messageDiv.innerHTML = `
+                <strong>${msg.user || 'Аноним'}:</strong> ${msg.text}
+                <div class="message-meta">${timestamp} ${serverInfo}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Обработчик формы чата
+        document.getElementById('chatForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const userName = document.getElementById('userName').value.trim() || 'Аноним';
+            const messageText = document.getElementById('messageInput').value.trim();
+            
+            if (messageText) {
+                socket.emit('chatMessage', { 
+                    user: userName, 
+                    text: messageText,
+                    clientTime: new Date().toISOString()
+                });
+                document.getElementById('messageInput').value = '';
+            }
         });
-      });
-      
-    const socket = io('http://localhost:4000');
-    // Получаем историю сообщений при подключении
-    socket.on('chatHistory', (messages) => {
-      const messagesDiv = document.getElementById('messages');
-      messages.forEach(msg => {
-        messagesDiv.innerHTML += `<div>${msg}</div>`;
-      });
-    });
-
-    // Обработка новых сообщений
-    socket.on('chatMessage', (msg) => {
-      const messagesDiv = document.getElementById('messages');
-      messagesDiv.innerHTML += `<div>${msg}</div>`;
-      messagesDiv.scrollTop = messagesDiv.scrollHeight; // Автоскролл
-    });
-
-    // Функция отправки сообщения
-    function sendMessage() {
-      const input = document.getElementById('messageInput');
-      const message = input.value.trim(); // Убираем лишние пробелы
-
-      if (message) { // Проверяем, что сообщение не пустое
-        socket.emit('chatMessage', message); // Отправляем сообщение на сервер
-        input.value = ''; // Очищаем поле ввода
-      } else {
-        alert('Сообщение не может быть пустым!'); // Предупреждение, если поле пустое
-      }
-    }
-  </script>
+        
+        // WebSocket события
+        socket.on('connect', () => {
+            console.log('Подключено к серверу');
+            loadProducts(); // Загружаем товары при подключении
+        });
+        
+        socket.on('chatMessage', (msg) => {
+            displayMessage(msg);
+        });
+        
+        socket.on('chatHistory', (messages) => {
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = '';
+            messages.forEach(msg => displayMessage(msg));
+        });
+        
+        socket.on('userCount', (data) => {
+            document.getElementById('userCountDisplay').textContent = `Пользователей в чате: ${data.count}`;
+            document.getElementById('userCount').textContent = `Пользователей онлайн: ${data.count}`;
+        });
+        
+        socket.on('serverInfo', (info) => {
+            updateServerInfo(info);
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Отключено от сервера');
+            document.getElementById('instanceId').textContent = 'ID экземпляра: отключено';
+        });
+        
+        // Загружаем товары при загрузке страницы
+        document.addEventListener('DOMContentLoaded', loadProducts);
+    </script>
 </body>
-
 </html>
